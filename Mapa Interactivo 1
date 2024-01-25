@@ -1,0 +1,42 @@
+import folium
+import json
+import pandas as pd
+import branca.colormap as cm
+from shapely.geometry import shape, Point
+import geopandas as gpd
+
+# Cargar datos socioeconómicos y GeoJSON
+data_socioeconomica_excel = pd.read_excel("./Downloads/t8598com.xlsx")
+with open("D:/Divisions_Territorials_Municipis_Catalunya/divisions-administratives-v2r1-comarques-500000-20230928.json", 'r', encoding='utf-8') as file:
+    geojson_data_comarcas = json.load(file)
+
+# Convertir GeoJSON a GeoDataFrame
+gdf = gpd.GeoDataFrame.from_features(geojson_data_comarcas['features'])
+
+# Preparar los datos
+sectores = ['Agricultura', 'Indústria', 'Construcció', 'Serveis', "Total"]
+datos_por_sector = {sector: data_socioeconomica_excel.set_index('Nom')[sector].to_dict() for sector in sectores}
+
+# Crear un mapa base
+mapa = folium.Map(location=[41.5912, 1.5209], zoom_start=7)
+
+# Función para el estilo y agregar tooltips
+def add_features(mapa):
+    for _, row in gdf.iterrows():
+        comarca = row['NOMCOMAR']
+        tooltip_text = f"Comarca: {comarca}<br>"
+        for sector in sectores:
+            value = datos_por_sector[sector].get(comarca, 0)
+            tooltip_text += f"{sector}: {value}<br>"
+
+        geojson_feature = folium.GeoJson(
+            row.geometry.__geo_interface__,
+            style_function=lambda feature: {'color': 'black', 'weight': 1, 'fillColor': '#ADD8E6', 'fillOpacity': 0.7},
+            tooltip=tooltip_text
+        ).add_to(mapa)
+
+# Aplicar la función al mapa
+add_features(mapa)
+
+# Mostrar el mapa
+display(mapa)
